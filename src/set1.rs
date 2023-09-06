@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod test {
+    use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyInit};
     use base64::{engine::general_purpose, Engine as _};
+    use itertools::Itertools;
 
     #[test]
     fn challenge1() {
@@ -85,13 +87,13 @@ mod test {
         let str = include_str!("SingleCharacterXor.txt");
         let lines: Vec<_> = str.split("\n").collect();
         let mut winner = Data::default();
-        for line in lines {
+        lines.iter().for_each(|line| {
             let bytes = hex::decode(line).expect("should be valid hex");
             let current = find_winner(&bytes);
             if current.score > winner.score {
                 winner = current
             }
-        }
+        });
         println!("{:?}", winner);
     }
 
@@ -126,10 +128,7 @@ mod test {
     #[test]
     fn challenge6() {
         let data = include_str!("Challenge6.txt");
-
-        let decoded = general_purpose::STANDARD
-            .decode(data.split('\n').collect::<String>())
-            .expect("Should be valid base64");
+        let decoded = base64_decode(data);
 
         let key_size = find_key_size(decoded.clone());
 
@@ -150,6 +149,12 @@ mod test {
         repeated_key_xor(key.as_bytes(), &mut output);
 
         println!("{:?}", String::from_utf8_lossy(&output));
+    }
+
+    fn base64_decode(str: &str) -> Vec<u8> {
+        general_purpose::STANDARD
+            .decode(str.split('\n').collect::<String>())
+            .expect("Should be valid base64")
     }
 
     fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>>
@@ -208,5 +213,32 @@ mod test {
         let str2 = "wokka wokka!!!";
         let dist = hamming_distance_str(str1, str2);
         assert_eq!(37, dist);
+    }
+
+    type Aes128EcbDec = ecb::Decryptor<aes::Aes128>;
+
+    #[test]
+    fn challenge7() {
+        const KEY: &[u8; 16] = b"YELLOW SUBMARINE";
+        let mut bytes = base64_decode(include_str!("Challenge7.txt"));
+        let decrypter = Aes128EcbDec::new(KEY.into());
+        let _ = decrypter.decrypt_padded_mut::<Pkcs7>(bytes.as_mut_slice());
+        print!("{}", String::from_utf8_lossy(&bytes));
+    }
+
+    #[test]
+    fn challenge8() {
+        let lines = include_str!("Challenge8.txt").trim().split('\n');
+        let mut distances = Vec::new();
+        for (i, line) in lines.enumerate() {
+            let bytes = hex::decode(line).expect("Provided data should be valid hex");
+            let mut total_distance = 0;
+            for (a, b) in bytes.chunks_exact(16).tuple_combinations() {
+                total_distance += hamming_distance(a, b)
+            }
+            distances.push((i, total_distance));
+        }
+        distances.sort_by_key(|x| x.1);
+        println!("{:?}", distances)
     }
 }

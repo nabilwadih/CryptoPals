@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 hex = "0.4.3"
 base64 = "0.21.2"
+ecb = {version = "0.1.1", features = ["std"]}
+aes = "0.8.2"
+itertools = "0.10.5"
